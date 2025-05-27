@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="model_list">
+        <item>wav2vec2.ptl</item>
+        <item>wav2vec2-large.ptl</item>
+    </string-array>
+</resources>
