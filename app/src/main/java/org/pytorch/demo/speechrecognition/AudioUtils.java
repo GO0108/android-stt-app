@@ -1,9 +1,17 @@
 package org.pytorch.demo.speechrecognition;
 
+import android.content.Context;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
+import android.net.Uri;
 import android.util.Log;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 
 public class AudioUtils {
 
@@ -94,5 +102,33 @@ public class AudioUtils {
 
         sb.append("]");
         Log.d(TAG, sb.toString());
+    }
+
+    public static float[] loadWavFile(Context context, Uri uri) throws IOException {
+        InputStream inputStream = context.getContentResolver().openInputStream(uri);
+        if (inputStream == null) return null;
+
+        ByteArrayOutputStream byteBuffer = new ByteArrayOutputStream();
+        int bufferSize = 1024;
+        byte[] buffer = new byte[bufferSize];
+
+        int len;
+        while ((len = inputStream.read(buffer)) != -1) {
+            byteBuffer.write(buffer, 0, len);
+        }
+
+        byte[] wavBytes = byteBuffer.toByteArray();
+        ByteBuffer byteBuf = ByteBuffer.wrap(wavBytes).order(ByteOrder.LITTLE_ENDIAN);
+
+        // Pula cabeçalho WAV de 44 bytes
+        byteBuf.position(44);
+
+        int samples = (wavBytes.length - 44) / 2;
+        float[] audioData = new float[samples];
+        for (int i = 0; i < samples; i++) {
+            audioData[i] = byteBuf.getShort() / (float) Short.MAX_VALUE;
+        }
+
+        return audioData;
     }
 }
