@@ -76,7 +76,7 @@ public class MainActivity extends AppCompatActivity {
                 double audioDurationSec = floatInputBuffer.length / (double) SAMPLE_RATE;
 
                 // 🧠 RTF = duração do áudio / tempo de inferência
-                double rtf = audioDurationSec / inferenceTimeSec;
+                double rtf = inferenceTimeSec / audioDurationSec  ;
 
                 // 🔥 Exibe resultado junto com tempo e RTF
                 String finalResult = String.format(
