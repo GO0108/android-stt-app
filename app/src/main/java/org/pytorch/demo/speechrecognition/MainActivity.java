@@ -1,74 +1,3 @@
-//package org.pytorch.demo.speechrecognition;
-//
-//import android.os.Build;
-//import android.os.Bundle;
-//import android.widget.Button;
-//import android.widget.TextView;
-//
-//import androidx.appcompat.app.AppCompatActivity;
-//
-//public class MainActivity extends AppCompatActivity implements Runnable {
-//    private static final int REQUEST_RECORD_AUDIO = 13;
-//    private static final int AUDIO_LEN_IN_SECOND = 3;
-//    private static final int SAMPLE_RATE = 16000;
-//    private static final int RECORDING_LENGTH = SAMPLE_RATE * AUDIO_LEN_IN_SECOND;
-//
-//    private ModelHelper modelHelper;
-//    private UiUtils uiUtils;
-//
-//    @Override
-//    protected void onCreate(Bundle savedInstanceState) {
-//        super.onCreate(savedInstanceState);
-//        setContentView(R.layout.activity_main);
-//
-//        Button button = findViewById(R.id.btnRecognize);
-//        TextView textView = findViewById(R.id.tvResult);
-//
-//        modelHelper = new ModelHelper(getApplicationContext(), RECORDING_LENGTH);
-//        uiUtils = new UiUtils(button, textView, AUDIO_LEN_IN_SECOND);
-//
-//        button.setOnClickListener(v -> {
-//            uiUtils.startRecordingUI();
-//            new Thread(MainActivity.this).start();
-//        });
-//
-//        requestMicrophonePermission();
-//    }
-//
-//    private void requestMicrophonePermission() {
-//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-//            requestPermissions(
-//                    new String[]{android.Manifest.permission.RECORD_AUDIO},
-//                    REQUEST_RECORD_AUDIO
-//            );
-//        }
-//    }
-//
-//    @Override
-//    public void run() {
-//        android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_AUDIO);
-//
-//        float[] floatInputBuffer = AudioUtils.recordAudio(SAMPLE_RATE, RECORDING_LENGTH);
-//
-//        if (floatInputBuffer == null) {
-//            uiUtils.showError("Erro na captura de áudio");
-//            return;
-//        }
-//
-//        AudioUtils.logAudioData(floatInputBuffer);
-//        uiUtils.showRecognizing();
-//
-//        final String result = modelHelper.recognize(floatInputBuffer);
-//        uiUtils.showResult(result);
-//    }
-//
-//    @Override
-//    protected void onDestroy() {
-//        uiUtils.stopTimer();
-//        super.onDestroy();
-//    }
-//}
-
 package org.pytorch.demo.speechrecognition;
 
 import android.os.Build;
@@ -81,16 +10,17 @@ import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-public class MainActivity extends AppCompatActivity implements Runnable {
+public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_RECORD_AUDIO = 13;
-    private static final int AUDIO_LEN_IN_SECOND = 3;
     private static final int SAMPLE_RATE = 16000;
-    private static final int RECORDING_LENGTH = SAMPLE_RATE * AUDIO_LEN_IN_SECOND;
+    private static final int MAX_RECORDING_LENGTH = SAMPLE_RATE * 30; // Máximo 30 segundos
 
     private ModelHelper modelHelper;
     private UiUtils uiUtils;
     private Spinner spinnerModel;
     private String selectedModel;
+
+    private boolean isRecording = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -101,16 +31,15 @@ public class MainActivity extends AppCompatActivity implements Runnable {
         TextView textView = findViewById(R.id.tvResult);
         spinnerModel = findViewById(R.id.spinnerModel);
 
-        // Inicialização com modelo padrão
         selectedModel = getResources().getStringArray(R.array.model_list)[0];
-        modelHelper = new ModelHelper(getApplicationContext(), RECORDING_LENGTH, selectedModel);
-        uiUtils = new UiUtils(button, textView, AUDIO_LEN_IN_SECOND);
+        modelHelper = new ModelHelper(getApplicationContext(), selectedModel);
+        uiUtils = new UiUtils(button, textView, 30);
 
         spinnerModel.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 selectedModel = parent.getItemAtPosition(position).toString();
-                modelHelper = new ModelHelper(getApplicationContext(), RECORDING_LENGTH, selectedModel);
+                modelHelper = new ModelHelper(getApplicationContext(), selectedModel);
             }
 
             @Override
@@ -118,8 +47,46 @@ public class MainActivity extends AppCompatActivity implements Runnable {
         });
 
         button.setOnClickListener(v -> {
-            uiUtils.startRecordingUI();
-            new Thread(MainActivity.this).start();
+            if (!isRecording) {
+                isRecording = true;
+                uiUtils.startRecordingUI();
+                AudioUtils.startRecording(SAMPLE_RATE, MAX_RECORDING_LENGTH);
+            } else {
+                isRecording = false;
+                uiUtils.showRecognizing();
+                float[] floatInputBuffer = AudioUtils.stopRecording();
+
+                if (floatInputBuffer == null) {
+                    uiUtils.showError("Erro na captura de áudio");
+                    return;
+                }
+
+                AudioUtils.logAudioData(floatInputBuffer);
+
+                // ⏱️ Marca início da inferência
+                long startTime = System.currentTimeMillis();
+
+                String result = modelHelper.recognize(floatInputBuffer);
+
+                // ⏱️ Marca fim da inferência
+                long endTime = System.currentTimeMillis();
+                double inferenceTimeSec = (endTime - startTime) / 1000.0;
+
+                // 🎧 Duração do áudio original
+                double audioDurationSec = floatInputBuffer.length / (double) SAMPLE_RATE;
+
+                // 🧠 RTF = duração do áudio / tempo de inferência
+                double rtf = audioDurationSec / inferenceTimeSec;
+
+                // 🔥 Exibe resultado junto com tempo e RTF
+                String finalResult = String.format(
+                        "Resultado:\n%s\n\n⏱️ Duração do áudio: %.2f s\n🧠 Tempo de transcrição: %.2f s\n⚙️ RTF: %.2f",
+                        result, audioDurationSec, inferenceTimeSec, rtf
+                );
+
+
+                uiUtils.showResult(finalResult);
+            }
         });
 
         requestMicrophonePermission();
@@ -132,24 +99,6 @@ public class MainActivity extends AppCompatActivity implements Runnable {
                     REQUEST_RECORD_AUDIO
             );
         }
-    }
-
-    @Override
-    public void run() {
-        android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_AUDIO);
-
-        float[] floatInputBuffer = AudioUtils.recordAudio(SAMPLE_RATE, RECORDING_LENGTH);
-
-        if (floatInputBuffer == null) {
-            uiUtils.showError("Erro na captura de áudio");
-            return;
-        }
-
-        AudioUtils.logAudioData(floatInputBuffer);
-        uiUtils.showRecognizing();
-
-        final String result = modelHelper.recognize(floatInputBuffer);
-        uiUtils.showResult(result);
     }
 
     @Override

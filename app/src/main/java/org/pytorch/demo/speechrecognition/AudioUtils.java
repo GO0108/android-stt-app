@@ -9,68 +9,80 @@ public class AudioUtils {
 
     private static final String TAG = "AudioUtils";
 
-    /**
-     * Grava o áudio por um tempo definido e retorna um array de float normalizado (-1.0 a 1.0)
-     */
-    public static float[] recordAudio(int sampleRate, int recordingLength) {
+    private static AudioRecord recorder = null;
+    private static short[] recordingBuffer;
+    private static int bufferOffset = 0;
+    private static int maxRecordingLength = 0;
+    private static boolean isRecording = false;
 
+    public static void startRecording(int sampleRate, int maxLength) {
+        maxRecordingLength = maxLength;
         int bufferSize = AudioRecord.getMinBufferSize(
                 sampleRate,
                 AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT
         );
 
-        AudioRecord record = new AudioRecord(
-                MediaRecorder.AudioSource.DEFAULT,
+        recorder = new AudioRecord(
+                MediaRecorder.AudioSource.MIC,
                 sampleRate,
                 AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT,
                 bufferSize
         );
 
-        if (record.getState() != AudioRecord.STATE_INITIALIZED) {
+        if (recorder.getState() != AudioRecord.STATE_INITIALIZED) {
             Log.e(TAG, "AudioRecord não inicializado!");
-            return null;
+            return;
         }
 
-        Log.d(TAG, "AudioRecord inicializado com sucesso");
+        recordingBuffer = new short[maxRecordingLength];
+        bufferOffset = 0;
+        isRecording = true;
 
-        record.startRecording();
+        recorder.startRecording();
 
-        long shortsRead = 0;
-        int recordingOffset = 0;
-        short[] audioBuffer = new short[bufferSize / 2];
-        short[] recordingBuffer = new short[recordingLength];
+        new Thread(() -> {
+            short[] audioBuffer = new short[bufferSize / 2];
 
-        while (shortsRead < recordingLength) {
-            int numberOfShort = record.read(audioBuffer, 0, audioBuffer.length);
-            shortsRead += numberOfShort;
-            System.arraycopy(audioBuffer, 0, recordingBuffer, recordingOffset, numberOfShort);
-            recordingOffset += numberOfShort;
-        }
-
-        record.stop();
-        record.release();
-
-        return convertToFloat(recordingBuffer);
+            while (isRecording && bufferOffset < maxRecordingLength) {
+                int read = recorder.read(audioBuffer, 0, audioBuffer.length);
+                if (read > 0) {
+                    int toCopy = Math.min(read, maxRecordingLength - bufferOffset);
+                    System.arraycopy(audioBuffer, 0, recordingBuffer, bufferOffset, toCopy);
+                    bufferOffset += toCopy;
+                }
+            }
+        }).start();
     }
 
-    /**
-     * Converte um array de short (PCM 16 bits) para float (-1.0 a 1.0)
-     */
+    public static float[] stopRecording() {
+        if (recorder == null) return null;
+
+        isRecording = false;
+
+        try {
+            recorder.stop();
+        } catch (Exception e) {
+            Log.e(TAG, "Erro ao parar gravação", e);
+        }
+        recorder.release();
+        recorder = null;
+
+        short[] finalBuffer = new short[bufferOffset];
+        System.arraycopy(recordingBuffer, 0, finalBuffer, 0, bufferOffset);
+
+        return convertToFloat(finalBuffer);
+    }
+
     public static float[] convertToFloat(short[] input) {
         float[] output = new float[input.length];
-
         for (int i = 0; i < input.length; i++) {
             output[i] = input[i] / (float) Short.MAX_VALUE;
         }
-
         return output;
     }
 
-    /**
-     * (Opcional) Faz log dos dados do áudio
-     */
     public static void logAudioData(float[] audioData) {
         StringBuilder sb = new StringBuilder();
         sb.append("🎧 floatInputBuffer = [");

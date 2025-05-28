@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout 
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -12,10 +13,10 @@
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="32dp"
         android:entries="@array/model_list"
-        app:layout_constraintBottom_toTopOf="@+id/btnRecognize"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/btnRecognize"/>
 
     <Button
         android:id="@+id/btnRecognize"
@@ -26,18 +27,18 @@
         android:textAllCaps="false"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/spinnerModel" />
+        app:layout_constraintTop_toBottomOf="@+id/spinnerModel"/>
 
     <TextView
         android:id="@+id/tvResult"
         android:layout_width="350dp"
-        android:layout_height="200dp"
+        android:layout_height="100dp"
         android:layout_marginTop="50dp"
         android:gravity="center"
         android:textAlignment="center"
         android:textSize="18sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/btnRecognize" />
+        app:layout_constraintTop_toBottomOf="@+id/btnRecognize"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

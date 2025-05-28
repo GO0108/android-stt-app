@@ -11,17 +11,17 @@ public class UiUtils {
 
     private final Button button;
     private final TextView textView;
-    private final int maxAudioLengthSec;
+    private final int audioLengthSec;
 
     private HandlerThread timerThread;
     private Handler timerHandler;
     private int currentCount;
     private Runnable timerRunnable;
 
-    public UiUtils(Button button, TextView textView, int maxAudioLengthSec) {
+    public UiUtils(Button button, TextView textView, int audioLengthSec) {
         this.button = button;
         this.textView = textView;
-        this.maxAudioLengthSec = maxAudioLengthSec;
+        this.audioLengthSec = audioLengthSec;
         initTimerRunnable();
     }
 
@@ -29,13 +29,12 @@ public class UiUtils {
         timerRunnable = new Runnable() {
             @Override
             public void run() {
-                if (currentCount >= maxAudioLengthSec) {
-                    button.performClick(); // força clicar "Stop"
+                if (currentCount >= audioLengthSec) {
                     return;
                 }
                 timerHandler.postDelayed(this, 1000);
                 button.post(() -> {
-                    button.setText(String.format("Stop (%ds)", currentCount));
+                    button.setText(String.format("Listening - %ds left", audioLengthSec - currentCount));
                     currentCount += 1;
                 });
             }
@@ -44,15 +43,15 @@ public class UiUtils {
 
     public void startRecordingUI() {
         button.post(() -> {
-            button.setText("Stop (0s)");
-            button.setEnabled(true);
+            button.setText(String.format("Listening - %ds left", audioLengthSec));
+            button.setEnabled(false);
         });
         currentCount = 1;
         startTimer();
     }
 
     public void startTimer() {
-        stopTimer();
+        stopTimer(); // Garante que não há timers anteriores rodando
         timerThread = new HandlerThread("AudioTimer");
         timerThread.start();
         timerHandler = new Handler(timerThread.getLooper());
@@ -74,12 +73,10 @@ public class UiUtils {
     }
 
     public void showRecognizing() {
-        stopTimer();
         button.post(() -> button.setText("Recognizing..."));
     }
 
     public void showResult(String result) {
-        stopTimer();
         button.post(() -> {
             textView.setText(result);
             button.setEnabled(true);
@@ -88,7 +85,6 @@ public class UiUtils {
     }
 
     public void showError(String error) {
-        stopTimer();
         button.post(() -> {
             textView.setText(error);
             button.setEnabled(true);
